@@ -291,7 +291,35 @@ def initialize_particle_cloud(self):
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
 
-        # TODO
+        curr_x = self.odom_pose.pose.position.x
+        old_x = self.odom_pose_last_motion_update.pose.position.x
+        curr_y = self.odom_pose.pose.position.y
+        old_y = self.odom_pose_last_motion_update.pose.position.y
+        curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
+        old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
+
+        delta_x = curr_x - old_x
+        delta_y = curr_y - old_y
+        delta_yaw = curr_yaw - old_yaw 
+
+        for i in range(len(self.particle_cloud)):
+            p_og = self.particle_cloud[i]
+            p = Pose()
+            p.position = Point()
+            p.position.x = p_og.position.x + delta_x
+            p.position.y = p_og.position.y + delta_y
+            p.position.z = 0
+            p.orientation = Quaternion()
+            # Don't know if this is right
+            q = quaternion_from_euler(0.0, 0.0, delta_yaw)
+            p.orientation.x = p_og.orientation.x + q[0]
+            p.orientation.y = p_og.orientation.y + q[1]
+            p.orientation.z = p_og.orientation.z + q[2]
+            p.orientation.w = p_og.orientation.w + q[3]
+
+            # initialize the new particle, where all will have the same weight (1.0)
+            new_particle = Particle(p, 1.0)
+            particle_cloud[i] = new_particle
 
 
 
