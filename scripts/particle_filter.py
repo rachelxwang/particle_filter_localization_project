@@ -124,7 +124,40 @@ class ParticleFilter:
     def initialize_particle_cloud(self):
         
         # TODO
+def initialize_particle_cloud(self):
 
+        # we'll initialize these 4 particles of form [x, y, theta]
+        n_particles = 100
+        min_x, max_x = 10, 0 #Need to know range of map
+        min_y, max_y = 10, 0
+        max_theta = 4
+ 
+        x_vals = np.random.randint(min_x, max_x, n_particles)
+        y_vals = np.random.randint(min_y, max_y, n_particles)
+        theta_vals = np.random.randint(0, max_theta, n_particles)
+
+        initial_particle_set = [[x_vals[i], y_vals[i], 2*np.pi/theta_vals[i]] for i in range(n_particles)]
+
+        self.particle_cloud = []
+
+        for i in range(len(initial_particle_set)):
+            p = Pose()
+            p.position = Point()
+            p.position.x = initial_particle_set[i][0]
+            p.position.y = initial_particle_set[i][1]
+            p.position.z = 0
+            p.orientation = Quaternion()
+            q = quaternion_from_euler(0.0, 0.0, initial_particle_set[i][2])
+            p.orientation.x = q[0]
+            p.orientation.y = q[1]
+            p.orientation.z = q[2]
+            p.orientation.w = q[3]
+
+            # initialize the new particle, where all will have the same weight (1.0)
+            new_particle = Particle(p, 1.0)
+
+            # append the particle to the particle cloud
+            self.particle_cloud.append(new_particle)
 
         self.normalize_particles()
 
