@@ -33,12 +33,14 @@ def get_yaw_from_pose(p):
     return yaw
 
 
-def draw_random_sample():
+def draw_random_sample(particles_list):
     """ Draws a random sample of n elements from a given list of choices and their specified probabilities.
     We recommend that you fill in this function using random_sample.
     """
-    # TODO
-    return
+    probabilities = [p.w for p in particles_list]
+    n = len(particles_list)
+    samples = np.random.choice(particles_list,n,replace=True,p=probabilities)
+    return samples
 
 
 class Particle:
@@ -120,19 +122,15 @@ class ParticleFilter:
 
         self.map = data
     
-
     def initialize_particle_cloud(self):
-        
-        # TODO
-def initialize_particle_cloud(self):
 
         # we'll initialize these 4 particles of form [x, y, theta]
         n_particles = 100
-        min_x, max_x = 10, 0 #Need to know range of map
-        min_y, max_y = 10, 0
+        min_x, max_x = 20, 0 #I think board is 20x20
+        min_y, max_y = 20, 0
         max_theta = 4
  
-        x_vals = np.random.randint(min_x, max_x, n_particles)
+        x_vals = np.random.randint(min_x, max_x, n_particles) #Need to convert from [0,20] to [-10,10]?
         y_vals = np.random.randint(min_y, max_y, n_particles)
         theta_vals = np.random.randint(0, max_theta, n_particles)
 
@@ -166,13 +164,12 @@ def initialize_particle_cloud(self):
 
     def normalize_particles(self):
         # make all the particle weights sum to 1.0
-        
-        # TODO
-
+        sum_weights = np.sum([p.w for p in self.particle_cloud])
+        for p in self.particle_cloud:
+            p.w = p.w/sum_weights
 
 
     def publish_particle_cloud(self):
-
         particle_cloud_pose_array = PoseArray()
         particle_cloud_pose_array.header = Header(stamp=rospy.Time.now(), frame_id=self.map_topic)
         particle_cloud_pose_array.poses
@@ -183,10 +180,7 @@ def initialize_particle_cloud(self):
         self.particles_pub.publish(particle_cloud_pose_array)
 
 
-
-
     def publish_estimated_robot_pose(self):
-
         robot_pose_estimate_stamped = PoseStamped()
         robot_pose_estimate_stamped.pose = self.robot_estimate
         robot_pose_estimate_stamped.header = Header(stamp=rospy.Time.now(), frame_id=self.map_topic)
@@ -195,9 +189,7 @@ def initialize_particle_cloud(self):
 
 
     def resample_particles(self):
-
-        # TODO
-
+        self.particle_cloud = draw_random_sample(self.particle_cloud)
 
 
     def robot_scan_received(self, data):
@@ -274,9 +266,12 @@ def initialize_particle_cloud(self):
 
     def update_estimated_robot_pose(self):
         # based on the particles within the particle cloud, update the robot pose estimate
-        
-        # TODO
-
+        new_pose = Pose()
+        new_pose.orientation.x = np.mean([p.pose.orientation.x for p in self.particle_cloud])
+        new_pose.orientation.y = np.mean([p.pose.orientation.y for p in self.particle_cloud])
+        new_pose.orientation.z = np.mean([p.pose.orientation.z for p in self.particle_cloud])
+        new_pose.orientation.w = np.mean([p.pose.orientation.w for p in self.particle_cloud])
+        self.robot_estimate = new_pose
 
     
     def update_particle_weights_with_measurement_model(self, data):
