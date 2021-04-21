@@ -42,6 +42,12 @@ def draw_random_sample(particles_list):
     samples = np.random.choice(particles_list,n,replace=True,p=probabilities)
     return samples
 
+# helper function to get index in occupancy grid from a Particle position
+def get_occupancy_grid_index(x, y):
+    x_ogrid = round((x+10)*20)
+    y_ogrid = round((y+10)*20)
+    return y_ogrid*384 + x_ogrid
+
 
 class Particle:
 
@@ -61,7 +67,7 @@ class ParticleFilter:
     def __init__(self):
 
         # once everything is setup initialized will be set to true
-        self.initialized = False        
+        self.initialized = False
 
 
         # initialize this particle filter node
@@ -86,7 +92,7 @@ class ParticleFilter:
         self.robot_estimate = Pose()
 
         # set threshold values for linear and angular movement before we preform an update
-        self.lin_mvmt_threshold = 0.2        
+        self.lin_mvmt_threshold = 0.2
         self.ang_mvmt_threshold = (np.pi / 6)
 
         self.odom_pose_last_motion_update = None
@@ -112,6 +118,7 @@ class ParticleFilter:
 
 
         # intialize the particle cloud
+        rospy.sleep(1)
         self.initialize_particle_cloud()
 
         self.initialized = True
@@ -121,23 +128,37 @@ class ParticleFilter:
     def get_map(self, data):
 
         self.map = data
-    
+
+
     def initialize_particle_cloud(self):
 
-        # we'll initialize these 4 particles of form [x, y, theta]
-        n_particles = 100
-        min_x, max_x = 20, 0 #I think board is 20x20
-        min_y, max_y = 20, 0
-        max_theta = 4
- 
-        x_vals = np.random.randint(min_x, max_x, n_particles) #Need to convert from [0,20] to [-10,10]?
-        y_vals = np.random.randint(min_y, max_y, n_particles)
-        theta_vals = np.random.randint(0, max_theta, n_particles)
+        num_particles = 10000 # total number of particles to generate
+        cur_particles = 0 # current number of generated particles
+        initial_particle_set = []
 
-        initial_particle_set = [[x_vals[i], y_vals[i], 2*np.pi/theta_vals[i]] for i in range(n_particles)]
+        # generate particles until total number is reached;
+        # looping is necessary because some randomly generated particles
+        # will be off the map or on top of an object/wall and need to be
+        # discarded
+        while cur_particles < num_particles:
+            needed_particles = num_particles - cur_particles
+
+            xs = np.random.uniform(-10, 9, needed_particles)
+            ys = np.random.uniform(-10, 9, needed_particles)
+            thetas = np.random.randint(0, 360, needed_particles)
+
+            new_particles = []
+            # only keep particles that are within open map space
+            for i in range(needed_particles):
+                if (self.map.data[get_occupancy_grid_index(xs[i], ys[i])] == 0):
+                    new_particles.append([xs[i], ys[i], math.radians(thetas[i])])
+
+            initial_particle_set = initial_particle_set + new_particles
+            cur_particles = len(initial_particle_set)
 
         self.particle_cloud = []
-
+        # create Particle objects from generated particle values
+        # from Class Meeting 6 starter code
         for i in range(len(initial_particle_set)):
             p = Pose()
             p.position = Point()
@@ -203,12 +224,12 @@ class ParticleFilter:
             return
 
         # wait for a little bit for the transform to become avaliable (in case the scan arrives
-        # a little bit before the odom to base_footprint transform was updated) 
+        # a little bit before the odom to base_footprint transform was updated)
         self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
             return
 
-        # calculate the pose of the laser distance sensor 
+        # calculate the pose of the laser distance sensor
         p = PoseStamped(
             header=Header(stamp=rospy.Time(0),
                           frame_id=data.header.frame_id))
@@ -241,7 +262,7 @@ class ParticleFilter:
             curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
             old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
 
-            if (np.abs(curr_x - old_x) > self.lin_mvmt_threshold or 
+            if (np.abs(curr_x - old_x) > self.lin_mvmt_threshold or
                 np.abs(curr_y - old_y) > self.lin_mvmt_threshold or
                 np.abs(curr_yaw - old_yaw) > self.ang_mvmt_threshold):
 
@@ -266,70 +287,63 @@ class ParticleFilter:
 
     def update_estimated_robot_pose(self):
         # based on the particles within the particle cloud, update the robot pose estimate
-        new_pose = Pose()
-        new_pose.orientation.x = np.mean([p.pose.orientation.x for p in self.particle_cloud])
-        new_pose.orientation.y = np.mean([p.pose.orientation.y for p in self.particle_cloud])
-        new_pose.orientation.z = np.mean([p.pose.orientation.z for p in self.particle_cloud])
-        new_pose.orientation.w = np.mean([p.pose.orientation.w for p in self.particle_cloud])
-        self.robot_estimate = new_pose
+        # new_pose = Pose()
+        # new_pose.orientation.x = np.mean([p.pose.orientation.x for p in self.particle_cloud])
+        # new_pose.orientation.y = np.mean([p.pose.orientation.y for p in self.particle_cloud])
+        # new_pose.orientation.z = np.mean([p.pose.orientation.z for p in self.particle_cloud])
+        # new_pose.orientation.w = np.mean([p.pose.orientation.w for p in self.particle_cloud])
+        # self.robot_estimate = new_pose
+        return
 
-    
+
     def update_particle_weights_with_measurement_model(self, data):
 
         # TODO
+        return
 
 
-        
 
     def update_particles_with_motion_model(self):
 
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
 
-        curr_x = self.odom_pose.pose.position.x
-        old_x = self.odom_pose_last_motion_update.pose.position.x
-        curr_y = self.odom_pose.pose.position.y
-        old_y = self.odom_pose_last_motion_update.pose.position.y
-        curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
-        old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-
-        delta_x = curr_x - old_x
-        delta_y = curr_y - old_y
-        delta_yaw = curr_yaw - old_yaw 
-
-        for i in range(len(self.particle_cloud)):
-            p_og = self.particle_cloud[i]
-            p = Pose()
-            p.position = Point()
-            p.position.x = p_og.position.x + delta_x
-            p.position.y = p_og.position.y + delta_y
-            p.position.z = 0
-            p.orientation = Quaternion()
-            # Don't know if this is right
-            q = quaternion_from_euler(0.0, 0.0, delta_yaw)
-            p.orientation.x = p_og.orientation.x + q[0]
-            p.orientation.y = p_og.orientation.y + q[1]
-            p.orientation.z = p_og.orientation.z + q[2]
-            p.orientation.w = p_og.orientation.w + q[3]
-
-            # initialize the new particle, where all will have the same weight (1.0)
-            new_particle = Particle(p, 1.0)
-            particle_cloud[i] = new_particle
+        # curr_x = self.odom_pose.pose.position.x
+        # old_x = self.odom_pose_last_motion_update.pose.position.x
+        # curr_y = self.odom_pose.pose.position.y
+        # old_y = self.odom_pose_last_motion_update.pose.position.y
+        # curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
+        # old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
+        #
+        # delta_x = curr_x - old_x
+        # delta_y = curr_y - old_y
+        # delta_yaw = curr_yaw - old_yaw
+        #
+        # for i in range(len(self.particle_cloud)):
+        #     p_og = self.particle_cloud[i]
+        #     p = Pose()
+        #     p.position = Point()
+        #     p.position.x = p_og.position.x + delta_x
+        #     p.position.y = p_og.position.y + delta_y
+        #     p.position.z = 0
+        #     p.orientation = Quaternion()
+        #     # Don't know if this is right
+        #     q = quaternion_from_euler(0.0, 0.0, delta_yaw)
+        #     p.orientation.x = p_og.orientation.x + q[0]
+        #     p.orientation.y = p_og.orientation.y + q[1]
+        #     p.orientation.z = p_og.orientation.z + q[2]
+        #     p.orientation.w = p_og.orientation.w + q[3]
+        #
+        #     # initialize the new particle, where all will have the same weight (1.0)
+        #     new_particle = Particle(p, 1.0)
+        #     particle_cloud[i] = new_particle
+        return
 
 
 
 if __name__=="__main__":
-    
+
 
     pf = ParticleFilter()
 
     rospy.spin()
-
-
-
-
-
-
-
-
-
