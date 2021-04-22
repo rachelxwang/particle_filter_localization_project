@@ -18,6 +18,7 @@ import math
 
 from random import randint, random
 
+from likelihood_field import LikelihoodField
 
 
 def get_yaw_from_pose(p):
@@ -37,10 +38,21 @@ def draw_random_sample(particles_list):
     """ Draws a random sample of n elements from a given list of choices and their specified probabilities.
     We recommend that you fill in this function using random_sample.
     """
+
     probabilities = [p.w for p in particles_list]
     n = len(particles_list)
     samples = np.random.choice(particles_list,n,replace=True,p=probabilities)
-    return samples
+    return samples.tolist()
+
+# copied from Class Meeting 6 starter code
+def compute_prob_zero_centered_gaussian(dist, sd):
+    """ Takes in distance from zero (dist) and standard deviation (sd) for gaussian
+        and returns probability (likelihood) of observation """
+
+    c = 1.0 / (sd * math.sqrt(2 * math.pi))
+    prob = c * math.exp((-math.pow(dist,2))/(2 * math.pow(sd, 2)))
+    return prob
+
 
 # helper function to get index in occupancy grid from a Particle position
 def get_occupancy_grid_index(x, y):
@@ -95,8 +107,9 @@ class ParticleFilter:
         self.odom_frame = "odom"
         self.scan_topic = "scan"
 
-        # inialize our map
+        # inialize our map and likelihood field
         self.map = OccupancyGrid()
+        self.likelihood_field = LikelihoodField()
 
         # the number of particles used in the particle filter
         self.num_particles = 10000
@@ -136,6 +149,7 @@ class ParticleFilter:
         # intialize the particle cloud
         rospy.sleep(1)
         self.initialize_particle_cloud()
+
 
         self.initialized = True
 
@@ -290,19 +304,48 @@ class ParticleFilter:
 
 
     def update_estimated_robot_pose(self):
+
         # based on the particles within the particle cloud, update the robot pose estimate
-        # new_pose = Pose()
-        # new_pose.orientation.x = np.mean([p.pose.orientation.x for p in self.particle_cloud])
-        # new_pose.orientation.y = np.mean([p.pose.orientation.y for p in self.particle_cloud])
-        # new_pose.orientation.z = np.mean([p.pose.orientation.z for p in self.particle_cloud])
-        # new_pose.orientation.w = np.mean([p.pose.orientation.w for p in self.particle_cloud])
-        # self.robot_estimate = new_pose
+        x = np.mean([p.pose.position.x for p in self.particle_cloud])
+        y = np.mean([p.pose.position.y for p in self.particle_cloud])
+        yaw = np.mean([get_yaw_from_pose(p.pose) for p in self.particle_cloud])
+        self.robot_estimate = make_pose(x, y, yaw)
+
         return
+
+    def likelihood_field_range_finder_model(self, z_t, x_t):
+
+        # by recommendation from Yves, we are scaling the Class Meeting 6
+        # four direction implementation to include 8 cardinal directions
+        cardinal_directions_idxs = [0, 45, 90, 135, 180, 225, 270, 315]
+
+        q = 1
+
+        # implementation of likelihood field range finger algorithm from
+        # Class Meeting 6 exercise; likelihood_field.py from class exercise
+        for i in cardinal_directions_idxs:
+
+            z_k_t = z_t.ranges[i]
+
+            if z_k_t < 3.5:
+                x_z_k_t = x_t.pose.position.x + z_k_t * math.cos(get_yaw_from_pose(x_t.pose) + math.radians(i))
+                y_z_k_t = x_t.pose.position.y + z_k_t * math.sin(get_yaw_from_pose(x_t.pose) + math.radians(i))
+
+                # returns NaN when out of map range
+                dist = self.likelihood_field.get_closest_obstacle_distance(x_z_k_t, y_z_k_t)
+
+                if not math.isnan(dist):
+                    prob = compute_prob_zero_centered_gaussian(dist, 0.1)
+                    q = q * prob
+
+        return q
 
 
     def update_particle_weights_with_measurement_model(self, data):
 
-        # TODO
+        for p in self.particle_cloud:
+            p.w = self.likelihood_field_range_finder_model(data, p)
+
         return
 
 
