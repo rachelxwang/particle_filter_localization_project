@@ -227,7 +227,6 @@ class ParticleFilter:
         self.robot_estimate_pub.publish(robot_pose_estimate_stamped)
 
 
-
     def resample_particles(self):
         self.particle_cloud = draw_random_sample(self.particle_cloud)
 
@@ -302,7 +301,6 @@ class ParticleFilter:
                 self.odom_pose_last_motion_update = self.odom_pose
 
 
-
     def update_estimated_robot_pose(self):
 
         # based on the particles within the particle cloud, update the robot pose estimate
@@ -312,6 +310,7 @@ class ParticleFilter:
         self.robot_estimate = make_pose(x, y, yaw)
 
         return
+
 
     def likelihood_field_range_finder_model(self, z_t, x_t):
 
@@ -349,8 +348,10 @@ class ParticleFilter:
         return
 
 
-
     def update_particles_with_motion_model(self):
+
+        # don't add noise if testing in order to test base functionality
+        TESTING = False
 
         # retrieve current and old x, y, yaw values
         cur_x = self.odom_pose.pose.position.x
@@ -371,7 +372,17 @@ class ParticleFilter:
             yaw_og = get_yaw_from_pose(p_og)
 
             # create new pose with updated x, y, yaw values
-            p = make_pose(p_og.position.x + delta_x, p_og.position.y + delta_y, yaw_og + delta_yaw)
+            x = p_og.position.x + delta_x
+            y = p_og.position.y + delta_y
+            yaw = yaw_og + delta_yaw
+
+            # add noise from normal distribution
+            if not TESTING:
+                x += np.random.normal(scale=0.2)
+                y += np.random.normal(scale=0.2)
+                yaw += np.random.normal(scale=0.2)
+
+            p = make_pose(x, y, yaw)
 
             # create new particle with weight 1.0, weight to be changed in
             # the measurement model step
