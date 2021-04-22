@@ -49,6 +49,22 @@ def get_occupancy_grid_index(x, y):
     return y_ogrid*384 + x_ogrid
 
 
+# helper function to make a pose from given x, y, and yaw values
+def make_pose(x, y, yaw):
+    p = Pose()
+    p.position = Point()
+    p.position.x = x
+    p.position.y = y
+    p.position.z = 0
+    q = quaternion_from_euler(0.0, 0.0, yaw)
+    p.orientation = Quaternion()
+    p.orientation.x = q[0]
+    p.orientation.y = q[1]
+    p.orientation.z = q[2]
+    p.orientation.w = q[3]
+    return p
+
+
 class Particle:
 
     def __init__(self, pose, w):
@@ -83,7 +99,7 @@ class ParticleFilter:
         self.map = OccupancyGrid()
 
         # the number of particles used in the particle filter
-        self.num_particles = 10000
+        self.num_particles = 1
 
         # initialize the particle cloud array
         self.particle_cloud = []
@@ -160,18 +176,7 @@ class ParticleFilter:
         # create Particle objects from generated particle values
         # from Class Meeting 6 starter code
         for i in range(len(initial_particle_set)):
-            p = Pose()
-            p.position = Point()
-            p.position.x = initial_particle_set[i][0]
-            p.position.y = initial_particle_set[i][1]
-            p.position.z = 0
-            p.orientation = Quaternion()
-            q = quaternion_from_euler(0.0, 0.0, initial_particle_set[i][2])
-            p.orientation.x = q[0]
-            p.orientation.y = q[1]
-            p.orientation.z = q[2]
-            p.orientation.w = q[3]
-
+            p = make_pose(initial_particle_set[i][0], initial_particle_set[i][1], initial_particle_set[i][2])
             # initialize the new particle, where all will have the same weight (1.0)
             new_particle = Particle(p, 1.0)
 
@@ -250,7 +255,6 @@ class ParticleFilter:
             self.odom_pose_last_motion_update = self.odom_pose
             return
 
-
         if self.particle_cloud:
 
             # check to see if we've moved far enough to perform an update
@@ -305,38 +309,32 @@ class ParticleFilter:
 
     def update_particles_with_motion_model(self):
 
-        # based on the how the robot has moved (calculated from its odometry), we'll  move
-        # all of the particles correspondingly
+        # retrieve current and old x, y, yaw values
+        cur_x = self.odom_pose.pose.position.x
+        old_x = self.odom_pose_last_motion_update.pose.position.x
+        cur_y = self.odom_pose.pose.position.y
+        old_y = self.odom_pose_last_motion_update.pose.position.y
+        cur_yaw = get_yaw_from_pose(self.odom_pose.pose)
+        old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
 
-        # curr_x = self.odom_pose.pose.position.x
-        # old_x = self.odom_pose_last_motion_update.pose.position.x
-        # curr_y = self.odom_pose.pose.position.y
-        # old_y = self.odom_pose_last_motion_update.pose.position.y
-        # curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
-        # old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-        #
-        # delta_x = curr_x - old_x
-        # delta_y = curr_y - old_y
-        # delta_yaw = curr_yaw - old_yaw
-        #
-        # for i in range(len(self.particle_cloud)):
-        #     p_og = self.particle_cloud[i]
-        #     p = Pose()
-        #     p.position = Point()
-        #     p.position.x = p_og.position.x + delta_x
-        #     p.position.y = p_og.position.y + delta_y
-        #     p.position.z = 0
-        #     p.orientation = Quaternion()
-        #     # Don't know if this is right
-        #     q = quaternion_from_euler(0.0, 0.0, delta_yaw)
-        #     p.orientation.x = p_og.orientation.x + q[0]
-        #     p.orientation.y = p_og.orientation.y + q[1]
-        #     p.orientation.z = p_og.orientation.z + q[2]
-        #     p.orientation.w = p_og.orientation.w + q[3]
-        #
-        #     # initialize the new particle, where all will have the same weight (1.0)
-        #     new_particle = Particle(p, 1.0)
-        #     particle_cloud[i] = new_particle
+        # calculate how the robot has moved
+        delta_x = cur_x - old_x
+        delta_y = cur_y - old_y
+        delta_yaw = cur_yaw - old_yaw
+
+        # update each particle
+        for i in range(len(self.particle_cloud)):
+            p_og = self.particle_cloud[i].pose # original particle pose
+            yaw_og = get_yaw_from_pose(p_og)
+
+            # create new pose with updated x, y, yaw values
+            p = make_pose(p_og.position.x + delta_x, p_og.position.y + delta_y, yaw_og + delta_yaw)
+
+            # create new particle with weight 1.0, weight to be changed in
+            # the measurement model step
+            new_particle = Particle(p, 1.0)
+            self.particle_cloud[i] = new_particle
+
         return
 
 
