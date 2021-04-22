@@ -11,10 +11,13 @@ import math
 class ParticleFilterTest:
 
     def __init__(self):
+
         print("Begin testing...")
         self.mockParticleFilter = ParticleFilter()
 
+
     def test_update_particles_with_motion_model(self):
+
         # create mock values for old and current robot pose; turtlebot begins
         # at (-3, 1, 0) by default; need to move only a small amount to avoid
         # triggering the real particle filter localization; movement of 0.1
@@ -42,7 +45,33 @@ class ParticleFilterTest:
         print("Test passed: update_particles_with_motion_model")
 
 
+    def test_normalize_particles(self):
+
+        # reset all particle weights to 1.0
+        for i in range(self.mockParticleFilter.num_particles):
+            self.mockParticleFilter.particle_cloud[i].w = 1.0
+
+        # ensure that sum of particle weights is 10000 as expected
+        particles = self.mockParticleFilter.particle_cloud
+        assert sum(list(map(lambda x: x.w, particles))) == 10000
+
+        # call normalize_particles() function to be tested
+        self.mockParticleFilter.normalize_particles()
+
+        # assert that particle weights now sum to 1.0
+        particles = self.mockParticleFilter.particle_cloud
+        assert math.isclose(1.0, sum(list(map(lambda x: x.w, particles))))
+
+        print("Test passed: normalize_particles")
+
+
+    def test_all(self):
+
+        self.test_update_particles_with_motion_model()
+        self.test_normalize_particles()
+
+
 if __name__=="__main__":
 
     pft = ParticleFilterTest()
-    pft.test_update_particles_with_motion_model()
+    pft.test_all()
