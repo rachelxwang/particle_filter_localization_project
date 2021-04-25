@@ -112,7 +112,7 @@ class ParticleFilter:
         self.likelihood_field = LikelihoodField()
 
         # the number of particles used in the particle filter
-        self.num_particles = 10000
+        self.num_particles = 5000
 
         # initialize the particle cloud array
         self.particle_cloud = []
@@ -162,7 +162,7 @@ class ParticleFilter:
 
     def initialize_particle_cloud(self):
 
-        num_particles = 10000 # total number of particles to generate
+        num_particles = self.num_particles # total number of particles to generate
         cur_particles = 0 # current number of generated particles
         initial_particle_set = []
 
