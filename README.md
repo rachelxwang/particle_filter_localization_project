@@ -30,7 +30,7 @@
 The goal of this project is to implement a particle filter algorithm to solve the problem of robot localization on the given map. Using the Monte Carlo Localization algorithm, the robot will determine where on the map it believes itself to be.
 
 #### High-Level Description
-TBD
+We solved the problem of robot localization using several key steps: initialization of a particle cloud representing different possible positions of the robot, a movement model for updating particles based on the robot's movement, a measurement model for computing weights for each particle, resampling for updating the particle cloud based on the calculated weights, noise for counter-acting the effects of the Gazebo noise, a method for updating the robot's predicted location based on the current particle cloud, and optimization of parameters to improve the accuracy and efficiency of the algorithm. The final algorithm converges on a value for the robot location by repeatedly updating the particle cloud as it moves through its environment and re-calculating the associated weights. This allows it to identify which particles correspond to locations that are more likely to represent the robot's true location, and allows us to re-sample the cloud to obtain a more accurate particle cloud. The prediction location, as determined by the mean of the particles' locations, therefore converges on the true value with each iteration. 
 
 #### Main Steps of the Particle Filter Localization
 1. **Initialization of particle cloud**
@@ -53,7 +53,9 @@ TBD
 
 4. **Resampling**
 
-  TBD
+  Code Location: within 'resample_particles' and 'draw_random_sample' methods within ParticleFilter
+
+  Code Description: The resample particles function calls the draw_random_sample function using the current particle cloud as input. It then assigns the output to be the new particle cloud. The draw_random_sample function resamples the particles within a particle cloud, returning a new set of n particles from a given cloud of n particles. It uses each particle's weight as its probability for being resampled. It then uses np.random.choice to generate a random sample of the particle cloud, using the given probabilities. 
 
 5. **Incorporation of noise**
 
@@ -63,11 +65,14 @@ TBD
 
 6. **Updating estimated robot pose**
 
-  TBD
+  Code Location: within 'update_particles_with_motion_model' method within Particle Filter
+
+  Code Description: We update each particle's location information using data about the robot's motion. We first calculate the change in each coordinate using the robot's odometer data. We then apply the change in each coordinate i to the ith coordinate for each particle by iterating over the particles in the particle cloud. We add noise to each variable by sampling a random number from a Gaussian distribution. We then create a new particle with the updated coordinates and a weight of 1.0 and add it to the particle cloud, replacing the old particle. 
 
 7. **Optimization of parameters**
+  Code Location: this step was accomplished by re-running the code using different variables, and so does not directly correspond to a given section of the code. We optimized the number of particles, the standard deviation for the noise distribution, and the standard deviation for calculating weights. 
 
-  TBD
+  Code Description: We optimized each parameter by running the code with several different values of the parameter. We used 5,000 particles because we found that this struck a good balance between accuracy and efficiency, as having significantly fewer particles made our algorithm less accurate and having significantly more particles introduced a larger lag time. Additionally, we used a standard deviation of 0.2 for the noise distribution because we found that this appeared to be on the same scale as the Gazebo noise. If it was smaller, the robot would not be able to compensate for all of the noise, and if it was much larger, it would be over-compensating. Finally, we used a standard deviation of 0.1 to obtain the weights, as this was suggested in the class exercise and we found that it led to good overall performance. 
 
 #### Challenges
 
@@ -75,8 +80,9 @@ One challenge we faced was that debugging was very difficult. We found that the 
 
 #### Future Work
 
-TBD
+If we had more time to improve our particle filter localization project, we could implement different variations of the code to determine the best approach. For instance, we could try different noise distributions other than a Gaussian, such as a uniform distribution. Additionally, we could resample particles using some function of their weight, rather than directly using their weights for the sampling probability. We might want to emphasize particles with larger weights, and so use an exponential function. We might also want to ignore particles with negligible weights, and apply a cut-off for which particles are included in the resampling. This might help the algorithm to converge on the robot's location quicker. Finally, we could explore different ways of calculating the robot's location from the particle locations, as taking the mean of each coordinate direction may not be the optimal technique. We could, for instance, use a clustering algorithm to identify different hotspots and then compute the center of the largest cluster. This would be especially helpful for getting accurate locations before the algorithm has converged on a value. 
 
 #### Takeaways
 
-One key takeaway from this project is that Zoom screen sharing is a very good tool for working on robot programming in pairs. We found it fairly effective to be able to see the same Gazebo and RViz windows to talk through solutions even while working remotely.
+- One key takeaway from this project is that Zoom screen sharing is a very good tool for working on robot programming in pairs. We found it fairly effective to be able to see the same Gazebo and RViz windows to talk through solutions even while working remotely.
+- An additional takeaway was that making a plan ahead of time for who would complete which tasks by which dates was helpful for communication purposes. This allowed us to hold each other responsible and to stay on track to finish the assignment on time. 
