@@ -28,10 +28,10 @@
 
 ![particle filter](./particle_filter.gif)
 
-#### Objectives Description
+### Objectives Description
 The goal of this project is to implement a particle filter algorithm to solve the problem of robot localization on the given map. Using the Monte Carlo Localization algorithm, the robot will determine where on the map it believes itself to be.
 
-#### High-Level Description
+### High-Level Description
 We solved the problem of robot localization using several key steps: initialization of a particle cloud representing different possible positions of the robot, a movement model for updating particles based on the robot's movement, a measurement model for computing weights for each particle, resampling for updating the particle cloud based on the calculated weights, noise for counter-acting the effects of the Gazebo noise, a method for updating the robot's predicted location based on the current particle cloud, and optimization of parameters to improve the accuracy and efficiency of the algorithm. The final algorithm converges on a value for the robot location by repeatedly updating the particle cloud as it moves through its environment and re-calculating the associated weights. This allows it to identify which particles correspond to locations that are more likely to represent the robot's true location, and allows us to re-sample the cloud to obtain a more accurate particle cloud. The prediction location, as determined by the mean of the particles' locations, therefore converges on the true value with each iteration.
 
 ### Main Steps of the Particle Filter Localization
